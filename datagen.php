@@ -63,6 +63,29 @@ class RNorm extends RandGen
     }
 }
 
+class RGamma extends RandGen
+{
+    private $shape;
+    private $scale;
+
+    function __construct($shape, $scale)
+    {
+        parent::__construct();
+        $this->shape = $shape;
+        $this->scale = $scale;
+    }
+
+    function __invoke()
+    {
+        return stats_rand_gen_gamma(1 / $this->scale, $this->shape);
+    }
+
+    function mean()
+    {
+        return $this->shape * $this->scale;
+    }
+}
+
 class RPois extends RandGen
 {
     private $mean;
@@ -131,6 +154,10 @@ function parse_options_dist($opt)
         $mean = (float) $values[1];
         $stddev = (float) $values[2];
         return new RNorm($mean, $stddev);
+    case 'g':
+        $shape = (float) $values[1];
+        $scale = (float) $values[2];
+        return new RGamma($shape, $scale);
     case 'p':
         $mean = (float) $values[1];
         return new RPois($mean);
