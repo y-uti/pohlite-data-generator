@@ -34,6 +34,18 @@ private:
         }
     };
 
+    // least_cost の結果を保持するオブジェクト
+    struct memo {
+        std::vector<resource>::const_iterator it;
+        long cost;
+        long count;
+        long expected;
+        memo(const std::vector<resource>::const_iterator it)
+            : it(it), cost(0), count(0), expected(std::numeric_limits<long>::max()) {}
+        memo(const std::vector<resource>::const_iterator it, const long cost, const long count)
+            : it(it), cost(cost), count(count), expected(-1) {}
+    };
+
 public:
 
     // コンストラクタ
@@ -48,7 +60,7 @@ public:
     long solve()
     {
         long answer = std::numeric_limits<long>::max();
-        solve_recursive(target, 0, companies.begin(), answer);
+        solve_recursive(target, 0, companies.begin(), initial_memo(), answer);
 
         return answer;
     }
@@ -61,7 +73,12 @@ private:
         return companies;
     }
 
-    void solve_recursive(const long target, const long cost, const std::vector<resource>::const_iterator it, long& best)
+    void solve_recursive(
+        const long target,
+        const long cost,
+        const std::vector<resource>::const_iterator it,
+        memo m,
+        long& best)
     {
         if (target <= 0) {
             if (cost < best) {
@@ -70,26 +87,49 @@ private:
             return;
         }
 
-        const long expected = least_cost(it, cost, target);
-        if (expected < best) {
-            solve_recursive(target - it->amount, cost + it->cost, it + 1, best);
-            solve_recursive(target, cost, it + 1, best);
+        if (m.expected == -1) {
+            m = least_cost(m);
+        }
+
+        if (m.expected < best) {
+            solve_recursive(target - it->amount, cost + it->cost, it + 1, m, best);
+            solve_recursive(target, cost, it + 1, next_memo(m, it), best);
         }
     }
 
-    long least_cost(std::vector<resource>::const_iterator it, long cost, long count) const
+    memo least_cost(memo m) const
     {
-        while (it != companies.end()) {
-            if (it->amount < count) {
-                cost += it->cost;
-                count -= it->amount;
-                ++it;
+        while (m.it != companies.end()) {
+            if (m.it->amount < m.count) {
+                m.cost += m.it->cost;
+                m.count -= m.it->amount;
+                ++m.it;
             } else {
-                cost += count * it->cost / it->amount;
-                return cost;
+                return update_expected(m);
             }
         }
-        return std::numeric_limits<long>::max();
+        return not_reached();
+    }
+
+    memo initial_memo() const
+    {
+        return memo(companies.begin(), 0, target);
+    }
+
+    memo next_memo(const memo& m, const std::vector<resource>::const_iterator it) const
+    {
+        return memo(m.it, m.cost - it->cost, m.count + it->amount);
+    }
+
+    memo update_expected(memo m) const
+    {
+        m.expected = m.cost + m.count * m.it->cost / m.it->amount;
+        return m;
+    }
+
+    memo not_reached() const
+    {
+        return memo(companies.end());
     }
 };
 
